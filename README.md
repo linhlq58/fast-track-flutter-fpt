@@ -109,3 +109,4 @@ Rubric: Correct async handling (40%), error handling (30%), code clarity (30%).
 
 # Assignment Evidence:
 ![▶️ Watch demo video](./assets/demo_app_book_fetching.mov)
+![▶️ Screenshot](./assets/demo_app_book_fetching.png)

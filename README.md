@@ -1,46 +1,152 @@
-# Day 8 – Row, Column, Stack, ListView/GridView (Concept/Lecture, 60 mins)
+# Day 10 – Custom reusable widgets (Concept/Lecture, 60 mins)
 
-1. Layout Fundamentals — Constraints (≈10 mins)
-	•	Core Flutter layout rule: "Constraints go down, sizes go up, parent sets position" — a widget's size is determined by its parent's constraints combined with its own content, and the parent decides where to place the child
-	•	Briefly explain BoxConstraints (minWidth/maxWidth/minHeight/maxHeight) so learners understand why certain layout errors happen (e.g., "unbounded height" errors when nesting lists)
-	•	This foundation matters for Intermediate level because it explains why certain combinations (like ListView inside Column without constraints) throw runtime errors — a very common bug
-2. Row & Column (≈15 mins)
-	•	Row (horizontal) and Column (vertical) — Flutter's primary linear layout widgets
-	•	Key properties:
-	◦	mainAxisAlignment — alignment along the primary direction (start, center, spaceBetween, spaceAround, spaceEvenly)
-	◦	crossAxisAlignment — alignment perpendicular to the primary direction
-	◦	mainAxisSize (max vs min) — whether the Row/Column takes all available space or shrinks to fit children
-	•	Expanded vs Flexible:
-	◦	Expanded forces a child to fill remaining space
-	◦	Flexible allows a child to take up space proportionally but won't force it if there's room to shrink
-	◦	flex property to control proportional sizing among multiple Expanded/Flexible children
-	•	Common error: RenderFlex overflowed — explain why it happens (children's combined size exceeds available space) and how to fix it (Expanded, Flexible, SingleChildScrollView, or Wrap)
-3. Stack (≈10 mins)
-	•	Stack — layers widgets on top of each other (z-axis), useful for overlays, badges, floating buttons, image with text overlay
-	•	Positioned widget — precisely place a child within a Stack using top/bottom/left/right
-	•	Alignment property on Stack — default alignment for non-positioned children
-	•	Real example: a product card with an image, a "Sale" badge positioned at the top-right corner
-4. ListView & GridView (≈20 mins)
-	•	ListView:
-	◦	ListView() (fixed children) vs ListView.builder() (lazy-built, efficient for long/dynamic lists — always prefer .builder() in real projects)
-	◦	ListView.separated() — adds dividers/spacing between items automatically
-	◦	shrinkWrap and physics properties — when and why to use them (e.g., nesting a ListView inside a Column/ScrollView)
-	•	GridView:
-	◦	GridView.count() — fixed number of columns
-	◦	GridView.builder() with SliverGridDelegateWithFixedCrossAxisCount or SliverGridDelegateWithMaxCrossAxisExtent — for dynamic, responsive grids
-	◦	Use case comparison: ListView for linear content (chat, feed, settings list), GridView for visual/card-based content (product catalog, photo gallery)
-	•	Performance note: .builder() constructors only render visible items + a buffer, which is critical for real-project performance with large datasets — connects forward to Unit 4 (rebuild optimization)
-5. Combining Layouts for Real UI (≈5 mins)
-	•	Quick example combining all four: a screen with a Column containing a header Row, a Stack-based banner, and a GridView.builder() for content below
-	•	Reinforce the mindset: real UIs are built by composing these basic layout widgets, not using one in isolation
+1. Why Build Custom Widgets? (≈10 mins)
+	•	At Junior level, developers often duplicate UI code across screens (copy-paste a card, a button style, a list tile) — this creates maintenance problems when design changes
+	•	Intermediate-level mindset: "If you build it twice, extract it into a widget."
+	•	Benefits: consistency across the app, easier testing, easier design-system updates, smaller/more readable build() methods
+2. Composition Over Inheritance (≈15 mins)
+	•	Flutter strongly favors composition — building complex widgets by combining smaller ones — rather than extending existing widget classes
+	•	Anti-pattern to flag: extending Container or Text directly to "customize" it — instead, wrap it:
 
+```dart
+class AppCard extends StatelessWidget {
+	final Widget child;    
+	const AppCard({super.key, required this.child});     
+	
+	@override    
+	Widget build(BuildContext context) {      
+		return Container(        
+			padding: const EdgeInsets.all(16),        
+			decoration: BoxDecoration(          
+				color: Colors.white,          
+				borderRadius: BorderRadius.circular(12),          
+				boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],        
+			),        
+			child: child,      
+		);    
+	}  
+}
+```
 
-# Day 9: Layout practice
+	•	This mirrors how Flutter's own framework is built (e.g., Padding, Center, Container are themselves composed of simpler RenderObjects)
+
+3. Designing a Reusable Widget API (≈20 mins)
+	•	Key design questions when extracting a widget:
+	◦	What should be fixed (part of the widget's own design) vs configurable (passed in via constructor)?
+	◦	Use named, required/optional parameters with sensible defaults:
  
-Task: Recreate a given UI mockup using Row/Column/Stack/ListView/GridView.
-Deliverable: Screen matching mockup ±10% layout accuracy.
-Evidence: Side-by-side screenshot comparison with mockup.
-Rubric: Layout accuracy (50%), responsiveness (30%), code structure (20%).
+```dart
+class PrimaryButton extends StatelessWidget {      
+	final String label;      
+	final VoidCallback onPressed;      
+	final bool isLoading;       
+	
+	const PrimaryButton({        
+		super.key,        
+		required this.label,        
+		required this.onPressed,        
+		this.isLoading = false,      
+	});      
+	
+	@override      
+	Widget build(BuildContext context) {        
+		return ElevatedButton(          
+			onPressed: isLoading ? null : onPressed,          
+			child: isLoading ? const SizedBox(
+				width: 16, 
+				height: 16, 
+				child: CircularProgressIndicator(strokeWidth: 2), 
+			) : Text(label),        
+		);     
+	}   
+}
+```
 
-# Assignment screenshot:
-![assignment screenhot](./assets/demo_screenshot.png)
+	•	Accepting a child or Widget Function(BuildContext) builder parameter for flexible content slots (similar to how ListView.builder works)
+	•	Naming conventions: prefix app-specific widgets clearly (e.g., AppCard, AppButton) to distinguish from Flutter's built-in widgets
+
+4. Organizing Reusable Widgets in a Project (≈10 mins)
+	•	Folder structure convention: lib/widgets/ or lib/core/widgets/ for shared components, separate from feature-specific widgets
+	•	Briefly preview: this organization connects directly to Unit 11 (Project Architecture) — reusable widgets typically live in a shared/core layer, independent of business logic
+	•	Mention: a small internal widget catalog/showcase screen (optional) can help the team see what's already available before building something new — reduces duplication at scale
+
+5. Common Pitfalls (≈5 mins)
+	•	Over-engineering too early: making a widget overly generic/configurable before there are 2-3 real use cases to justify it
+	•	Under-engineering: leaving const colors/sizes hardcoded instead of using theme values (connects to design consistency)
+	•	Forgetting to pass through a key parameter — important for widget identity in lists (preview for Day 11's rebuild optimization topic)
+
+
+# Day 11 – Rebuild optimization (const/keys) (Concept/Lecture, 60 mins)
+
+1. How Flutter Rebuilds Work (≈10 mins)
+Recap from Day 6: build() is called whenever setState() runs, a parent rebuilds, or an InheritedWidget dependency changes
+Rebuilding is cheap by design (widgets are lightweight, immutable configurations), but not free: a large subtree rebuilt 60 times/second can cause dropped frames (jank)
+Intermediate-level mindset: the goal is not to eliminate rebuilds, but to avoid unnecessary rebuilds of large or expensive subtrees
+Key concept: Flutter compares the new widget with the old one at the same position in the Element Tree. If they are identical instances (e.g., const), Flutter skips rebuilding that subtree entirely
+
+2. const Constructors (≈15 mins)
+A const widget is created once at compile time and reused, so Flutter can skip rebuilding it
+
+``` dart
+
+Plain Text
+  // Rebuilt every time the parent rebuilds  Padding(padding: EdgeInsets.all(8), child: Text('Hello'))   // Created once, skipped during rebuilds  const Padding(padding: EdgeInsets.all(8), child: Text('Hello'))
+```
+
+Rules for using const:
+All fields must be final, and the constructor must be declared const
+All arguments passed must also be compile-time constants
+A const parent makes its entire subtree const
+
+Reinforce from Day 10: custom reusable widgets should declare const constructors so callers can use them
+Tooling tip: enable lint rules prefer_const_constructors and prefer_const_literals_to_create_immutables in analysis_options.yaml, and use IDE quick-fixes to apply them
+Limitation to mention: const only helps when values are truly static. Widgets that depend on runtime data cannot be const
+
+3. Keys (≈15 mins)
+
+What a Key is: an identifier that helps Flutter match widgets to Elements when the widget list changes
+Problem demo: reorder/remove items in a list of Stateful widgets without keys, and the state (e.g., a checkbox or text field) stays at the old position and "jumps" to the wrong item
+Types of keys:
+ValueKey — based on a simple value (e.g., item ID). Most common for list items
+ObjectKey — based on object identity
+UniqueKey — new on every build (forces state reset; use carefully)
+GlobalKey — unique across the whole app; allows accessing a widget's state from elsewhere (use sparingly, as it is costly and can create tight coupling)
+PageStorageKey — preserves scroll position across navigation
+
+Rule of thumb: keys are not needed for Stateless widgets in static layouts. They matter when reordering/inserting/removing Stateful widgets in a collection
+
+```dart
+  ListView.builder(    
+	itemCount: items.length,    
+	itemBuilder: (context, index) => TodoTile(      
+		key: ValueKey(items[index].id),      
+		item: items[index],    
+	),
+)
+```
+
+4. Other Rebuild Reduction Techniques (≈10 mins)
+
+Push setState() down: move the stateful part into a small separate widget so only that subtree rebuilds, instead of the whole screen
+Extract widgets into classes, not helper methods: a Widget _buildHeader() method rebuilds with its parent, whereas a separate widget class (especially a const one) can be skipped
+Use ListView.builder / GridView.builder: only visible items are built (recap from Day 8)
+Brief preview: state management tools (Provider Selector/Consumer, Bloc BlocBuilder with buildWhen) give fine-grained control over which widgets rebuild (Unit 5-6)
+
+5. Measuring Rebuilds with Flutter DevTools (≈10 mins)
+
+Demo: open Flutter DevTools → Performance / Widget Inspector, and enable "Track widget rebuilds" (or use debugPrint inside build() for a quick check)
+Show a before/after example: a screen where one counter update rebuilds the whole page, then fix it with const + extracted widgets, and compare rebuild counts
+This links directly to the Day 12 lab (Refactor widget lab), where learners must provide before/after rebuild evidence as defined in the lab rubric
+Warning: always profile in profile mode on a real device, because debug mode performance numbers are not representative
+
+
+# Day 12: Refactor widget lab
+
+Task: Refactor Day 7–9 widgets into reusable components; apply const/keys optimization.
+Deliverable: Refactored code with reduced rebuild count (before/after).
+Evidence: Flutter DevTools rebuild count screenshot (before/after).
+Rubric: Reusability (30%), correct const/key usage (40%), measurable rebuild reduction (30%).
+
+
+# Assignment evidence:
+![Go to ./assets/demo_recording.mov](./assets/demo_recording.mov)

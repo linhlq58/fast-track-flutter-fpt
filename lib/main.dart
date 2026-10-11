@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:fast_track_flutter_fpt/screens/practice_screen.dart';
+import 'screens/profile_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -16,7 +16,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const PracticeScreen(),
+      home: const ProfileScreen(),
     );
   }
 }

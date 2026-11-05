@@ -1,149 +1,149 @@
-# Day 21 – Dio/http, JSON parsing (freezed/json_serializable) (Concept/Lecture, 90 mins)
-1. REST API Recap & Flutter Networking Overview (≈10 mins)
-Quick recap of REST concepts: HTTP methods (GET/POST/PUT/PATCH/DELETE), status codes (2xx/4xx/5xx), headers, JSON body
-In Flutter, networking is asynchronous, so everything from Day 3 (Future, async/await) applies directly
-Intermediate expectation: do not call APIs directly from widgets. Network code belongs in a data layer (repository/data source), which prepares for Unit 11 (Architecture) and the Bloc pattern from Day 15
+# Day 23 – Error handling patterns (Concept/Lecture, 60 mins)
 
-2. http vs Dio (≈20 mins)
-http package: lightweight, official, enough for simple calls
+1. Why Error Handling Matters (≈10 mins)
+Day 21 covered only the happy path. In production, failures are normal: no network, timeouts, server errors, malformed JSON, expired tokens
+Junior-level symptoms: app crashes with a red screen, spinner that never stops, blank screen with no explanation, raw exception text shown to the user
+Intermediate expectation: every async operation has three explicit outcomes (loading, success, error), and every error is mapped to something the user can understand and act on
+Connects to LO6 and to the Day 24 lab (3 error scenarios: network error, timeout, empty state)
 
-```dart
-final response = await http.get(Uri.parse('https://jsonplaceholder.typicode.com/posts/1'));  
-if (response.statusCode == 200) {    
-    final json = jsonDecode(response.body) as Map<String, dynamic>;  
-}
-```
-Limitations: no built-in interceptors, no automatic JSON decoding, manual timeout/cancel handling, manual status-code checking
-Dio package: feature-rich HTTP client
-BaseOptions (baseUrl, connectTimeout, receiveTimeout, default headers)
-Interceptors: attach auth tokens, log requests/responses, refresh tokens, centralize error mapping
-Automatic JSON decoding, FormData for uploads, CancelToken, download/upload progress
+2. Types of Errors in a Flutter App (≈10 mins)
+Network errors: no connectivity, DNS failure (SocketException, DioExceptionType.connectionError)
+Timeouts: connect, send, receive (DioExceptionType.connectionTimeout, receiveTimeout)
+HTTP errors: 4xx (client: 400 validation, 401 unauthorized, 404 not found) vs 5xx (server)
+Parsing errors: FormatException, TypeError when the JSON shape differs from the model
+Business/domain errors: valid response but a failed operation (e.g., “insufficient balance”)
+Empty state: not an exception, but a valid result with no data. It must still be handled in the UI
+Key distinction: recoverable (retry may help: timeout, 503) vs non-recoverable (retry will not help: 404, 400, parse error)
+
+3. Error Handling in the Data Layer (≈15 mins)
+Do not let raw DioException leak into UI/Bloc. Map it into app-level errors in the repository:
  
 ```dart
-final dio = Dio(BaseOptions(    
-    baseUrl: 'https://jsonplaceholder.typicode.com',    
-    connectTimeout: const Duration(seconds: 10),    
-    receiveTimeout: const Duration(seconds: 10),  
-));   
+sealed class AppFailure {    
+    final String message;    
+    const AppFailure(this.message);  
+}  
 
-dio.interceptors.add(
-    InterceptorsWrapper(    
-        onRequest: (options, handler) {      
-            options.headers['Authorization'] = 'Bearer $token';      
-            handler.next(options);    
-        },    
-        onError: (e, handler) {      // map to app-level error      
-            handler.next(e);    
-        },  
-    ));   
+class NetworkFailure extends AppFailure {    
+    const NetworkFailure() : super('No internet connection');  
+}  
     
-    final response = await dio.get('/posts/1');  
-    print(response.data); // already decoded
-```
+class TimeoutFailure extends AppFailure {    
+    const TimeoutFailure() : super('The request timed out');  
+}  
 
-Comparison and guidance: use http for small demos or very simple needs; use Dio in real projects that need interceptors, timeouts, and consistent error handling
-Course convention: labs use Dio
+class ServerFailure extends AppFailure {    
+    final int? statusCode;    
+    const ServerFailure(this.statusCode) : super('Server error');  
+}  
 
-3. Manual JSON Parsing (≈15 mins)
-Understand the basics before using code generation:
- 
-```dart
-  class Post {    
-    final int id;    
-    final String title;    
-    final String? body;     
-    const Post({required this.id, required this.title, this.body});     
-    
-    factory Post.fromJson(Map<String, dynamic> json) => Post(          
-        id: json['id'] as int,          
-        title: json['title'] as String,          
-        body: json['body'] as String?,        
-    );     
-    
-    Map<String, dynamic> toJson() => {'id': id, 'title': title, 'body': body};  }
-```
-
-Link to Day 1: factory constructors and null safety (String?) are applied directly here
-Pain points of manual parsing: boilerplate, typos in string keys, casting errors at runtime, hard to maintain for nested/large models
-Handling lists and nesting: (json['items'] as List).map((e) => Item.fromJson(e)).toList()
-
-4. Code Generation: json_serializable & freezed (≈25 mins)
-Why code generation: compile-time safety, less boilerplate, consistent models
-json_serializable:
- 
-```dart
-import 'package:json_annotation/json_annotation.dart';  
-part 'post.g.dart';   
-  
-@JsonSerializable()  
-  class Post {    
-    final int id;    
-    final String title;    
-    @JsonKey(name: 'user_id')    
-    final int userId;     
-    
-    const Post({required this.id, required this.title, required this.userId});     
-    
-    factory Post.fromJson(Map<String, dynamic> json) => _$PostFromJson(json);    
-    Map<String, dynamic> toJson() => _$PostToJson(this);  }
-```
-Useful annotations: @JsonKey(name:, defaultValue:, includeIfNull:), explicitToJson: true for nested objects
-freezed (builds on json_serializable): immutable models with copyWith, value equality, union types
- 
-```dart
-import 'package:freezed_annotation/freezed_annotation.dart';  
-part 'post.freezed.dart';  
-part 'post.g.dart';   
-  
-@freezed  class Post with _$Post {    
-    const factory Post({      
-        required int id,      
-        required String title,      
-        @JsonKey(name: 'user_id') 
-        required int userId,    
-    }) = _Post;     
-    
-    factory Post.fromJson(Map<String, dynamic> json) => _$PostFromJson(json);  
+class ParseFailure extends AppFailure {    
+    const ParseFailure() : super('Unexpected data format');  
 }
 ```
 
-Connects back to Day 15: freezed gives the immutable state, copyWith, and equality that Bloc relies on, without hand-written Equatable code
-Run the generator:
- 
-```bash
-  dart run build_runner build --delete-conflicting-outputs  # or during development  
-  dart run build_runner watch --delete-conflicting-outputs
-```
-
-Practical tips: commit or ignore generated files according to team convention, and fix “part directive” errors (missing part line or wrong file name), which are the most common beginner mistake
-
-5. Repository Pattern & Wrap-up (≈15 mins)
-Place API calls in a repository so UI/Bloc never see Dio directly:
+Mapping in the repository:
  
 ```dart
-class PostRepository {    
-    final Dio _dio;    
-    PostRepository(this._dio);     
-    Future<List<Post>> getPosts() async {      
+  Future<List<Post>> getPosts() async {    
+    try {      
         final response = await _dio.get('/posts');      
-        return (response.data as List).map((e) => Post.fromJson(e as Map<String, dynamic>)).toList();    
+        return (response.data as List)          
+            .map((e) => Post.fromJson(e as Map<String, dynamic>))          
+            .toList();    
+    } on DioException catch (e) {      
+        switch (e.type) {        
+            case DioExceptionType.connectionTimeout:        
+            case DioExceptionType.receiveTimeout:        
+            case DioExceptionType.sendTimeout:          
+                throw const TimeoutFailure();        
+            case DioExceptionType.connectionError:          
+                throw const NetworkFailure();        
+            case DioExceptionType.badResponse:          
+                throw ServerFailure(e.response?.statusCode);        
+            default:          
+                throw const ServerFailure(null);      
+        }    
+    } on FormatException {      
+        throw const ParseFailure();    
+    } on TypeError {      
+        throw const ParseFailure();    
     }  
 }
 ```
 
-Benefits: easy to mock in tests (links to FakeProductRepository in Day 15), single place to change endpoints or libraries
-Preview of Day 23-24 (Error handling): this lecture only covers the happy path, and failures (timeouts, 4xx/5xx, no network) will be handled next
-Bridge to Day 22 (API integration lab): learners call a public API with Dio, parse it with freezed/json_serializable, and show the data on screen, matching the rubric already defined
-Self-learning before Day 22: read the Dio README, and the freezed and json_serializable package pages. Trainer to share the mock/public API list before this session, as noted in the Logistics section
+Alternative to mention (not required): a Result<T> / Either type instead of throwing, so the compiler forces callers to handle failures
+Centralize mapping in a Dio interceptor when many endpoints share the same rules (e.g., 401 handling)
+Never swallow errors silently (catch (_) {}). Always log or rethrow
 
-
-# Day 22: API integration lab
+4. Representing Loading / Error / Empty / Success in UI State (≈15 mins)
+Model all four outcomes explicitly. Recap from Day 15 (status enum + copyWith), extended with an error object and an empty check:
  
-Task: Integrate a public REST API using Dio, parse response with freezed/json_serializable.
-Deliverable: Screen displaying parsed API data.
-Evidence: Demo video + Git commit + generated model files.
-Rubric: Correct API call (30%), correct JSON parsing (40%), code structure (30%).
+```dart
+  enum ListStatus { initial, loading, success, empty, failure }
+```
+
+UI rendering pattern:
+ 
+```dart
+switch (state.status) {    
+    case ListStatus.loading:      
+        return const Center(child: CircularProgressIndicator());    
+    case ListStatus.failure:      
+        return ErrorView(        
+            message: state.failure?.message ?? 'Something went wrong',        
+            onRetry: () => context.read<PostBloc>().add(PostsFetched()),      
+        );    
+    case ListStatus.empty:      
+        return const EmptyView(message: 'No posts yet');    
+    case ListStatus.success:      
+        return PostList(posts: state.posts);    
+    case ListStatus.initial:      
+        return const SizedBox.shrink();  
+}
+```
+
+UX guidelines:
+Show a retry action for recoverable errors
+Use clear, non-technical messages (no stack traces for users)
+Keep previously loaded data visible when a refresh fails (show a SnackBar instead of wiping the screen)
+Use BlocListener for one-off feedback (SnackBar) and BlocBuilder for persistent error views (recap from Day 15)
+Reuse from Day 10: build ErrorView and EmptyView as reusable widgets
+
+5. Global Error Handling & Wrap-up (≈10 mins)
+Safety nets for unexpected errors:
+FlutterError.onError for framework errors
+PlatformDispatcher.instance.onError for uncaught async errors
+runZonedGuarded (older pattern, still seen in existing projects)
+Mention crash reporting tools (Firebase Crashlytics, Sentry) at a high level only
+Retry strategies: manual retry button (course scope) vs automatic retry with exponential backoff (mention only)
+Common pitfalls recap:
+Showing e.toString() directly to users
+Forgetting to reset the loading state in the failure branch (the “spinner never stops” bug from Day 3)
+Treating an empty list as an error, or ignoring it
+Using context after await without mounted checks
+Bridge to Day 24 (Error handling practice): learners add handling for 3 scenarios (network error, timeout, empty state) to the Day 22 feature and provide a screenshot of each state, matching the rubric already defined
+Self-learning before Day 24: read the Dio docs on error handling (DioException) and the Flutter docs on FlutterError.onError
+
+
+# Day 24: Error handling practice
+
+Task: Add error handling (network error, timeout, empty state) to Day 22 feature. 
+Deliverable: Feature handling 3 error scenarios gracefully (UI feedback). 
+Evidence: Screenshots of each error state handled.
+Rubric: Coverage of error cases (40%), UX clarity (30%), code robustness (30%)
+
 
 # Assignment evidence:
-* Parsed response with freezed/json_serializable in ./lib/models/
-* ![Demo recording in ./assets/demo_recording.mov](./assets/demo_recording.mov)
+
+## 1. Network Error
+![Network Error](./assets/network_error_case.png)
+
+## 2. Timeout Error
+![Timeout Error](./assets/request_timeout_case.png)
+
+## 3. Empty State
+![Empty State](./assets/empty_case.png)
+
+## 4. Success State
+![Success State](./assets/successful_case.png)

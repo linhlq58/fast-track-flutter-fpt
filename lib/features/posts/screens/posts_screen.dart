@@ -1,3 +1,5 @@
+import 'package:fast_track_flutter_fpt/features/posts/widgets/empty_view.dart';
+import 'package:fast_track_flutter_fpt/features/posts/widgets/error_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -28,48 +30,32 @@ class PostsScreen extends StatelessWidget {
         builder: (context, state) {
           switch (state.status) {
             case PostsStatus.initial:
+              return const SizedBox.shrink();
+
             case PostsStatus.loading:
               return const Center(
                 child: CircularProgressIndicator(),
               );
 
             case PostsStatus.failure:
-              return Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.error_outline,
-                      size: 48,
-                      color: Colors.red,
-                    ),
-                    const SizedBox(height: 12),
-                    const Text('Unable to load posts'),
-                    const SizedBox(height: 8),
-                    Text(
-                      state.errorMessage ?? 'Unknown error',
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () {
-                        context.read<PostsBloc>().add(
-                              const PostsRequested(),
-                            );
-                      },
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
+              return ErrorView(
+                message: state.failure?.message ??
+                    'Something went wrong.',
+                onRetry: state.failure?.isRecoverable == true
+                    ? () {
+                        context
+                            .read<PostsBloc>()
+                            .add(const PostsRequested());
+                      }
+                    : null,
+              );
+
+            case PostsStatus.empty:
+              return const EmptyView(
+                message: 'No posts yet.',
               );
 
             case PostsStatus.success:
-              if (state.posts.isEmpty) {
-                return const Center(
-                  child: Text('No posts found'),
-                );
-              }
-
               return ListView.separated(
                 padding: const EdgeInsets.all(16),
                 itemCount: state.posts.length,
@@ -108,7 +94,7 @@ class PostsScreen extends StatelessWidget {
               );
           }
         },
-      ),
+      )
     );
   }
 }

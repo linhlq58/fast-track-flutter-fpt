@@ -1,10 +1,10 @@
+import 'package:fast_track_flutter_fpt/repositories/posts_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'features/posts/bloc/posts_bloc.dart';
 import 'features/posts/bloc/posts_event.dart';
 import 'features/posts/screens/posts_screen.dart';
-import 'repositories/post_repository.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({
@@ -12,7 +12,7 @@ class MyApp extends StatelessWidget {
     required this.postRepository,
   });
 
-  final PostRepository postRepository;
+  final PostsRepository postRepository;
 
   @override
   Widget build(BuildContext context) {

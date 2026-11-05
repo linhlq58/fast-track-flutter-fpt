@@ -1,11 +1,13 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../core/errors/app_failure.dart';
 import '../../../models/post.dart';
 
 enum PostsStatus {
   initial,
   loading,
   success,
+  empty,
   failure,
 }
 
@@ -13,31 +15,26 @@ class PostsState extends Equatable {
   const PostsState({
     this.status = PostsStatus.initial,
     this.posts = const [],
-    this.errorMessage,
+    this.failure,
   });
 
   final PostsStatus status;
   final List<Post> posts;
-  final String? errorMessage;
+  final AppFailure? failure;
 
   PostsState copyWith({
     PostsStatus? status,
     List<Post>? posts,
-    String? errorMessage,
-    bool clearError = false,
+    AppFailure? failure,
+    bool clearFailure = false,
   }) {
     return PostsState(
       status: status ?? this.status,
       posts: posts ?? this.posts,
-      errorMessage:
-          clearError ? null : errorMessage ?? this.errorMessage,
+      failure: clearFailure ? null : failure ?? this.failure,
     );
   }
 
   @override
-  List<Object?> get props => [
-        status,
-        posts,
-        errorMessage,
-      ];
+  List<Object?> get props => [status, posts, failure];
 }

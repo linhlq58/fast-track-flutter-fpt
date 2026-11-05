@@ -1,18 +1,19 @@
+import 'package:fast_track_flutter_fpt/repositories/posts_repository.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../repositories/post_repository.dart';
+import '../../../core/errors/app_failure.dart';
 import 'posts_event.dart';
 import 'posts_state.dart';
 
 class PostsBloc extends Bloc<PostsEvent, PostsState> {
   PostsBloc({
-    required PostRepository postRepository,
+    required PostsRepository postRepository,
   })  : _postRepository = postRepository,
         super(const PostsState()) {
     on<PostsRequested>(_onPostsRequested);
   }
 
-  final PostRepository _postRepository;
+  final PostsRepository _postRepository;
 
   Future<void> _onPostsRequested(
     PostsRequested event,
@@ -21,25 +22,47 @@ class PostsBloc extends Bloc<PostsEvent, PostsState> {
     emit(
       state.copyWith(
         status: PostsStatus.loading,
-        clearError: true,
+        clearFailure: true,
       ),
     );
 
     try {
       final posts = await _postRepository.getPosts();
 
+      if (posts.isEmpty) {
+        emit(
+          state.copyWith(
+            status: PostsStatus.empty,
+            posts: posts,
+            clearFailure: true,
+          ),
+        );
+        return;
+      }
+
       emit(
         state.copyWith(
           status: PostsStatus.success,
           posts: posts,
-          clearError: true,
+          clearFailure: true,
         ),
       );
-    } catch (error) {
+    } on AppFailure catch (failure) {
       emit(
         state.copyWith(
           status: PostsStatus.failure,
-          errorMessage: error.toString(),
+          failure: failure,
+        ),
+      );
+    } catch (error, stackTrace) {
+      // Unexpected programming or runtime error.
+      // Log error and stackTrace in a real application.
+      addError(error, stackTrace);
+
+      emit(
+        state.copyWith(
+          status: PostsStatus.failure,
+          failure: const UnknownFailure(),
         ),
       );
     }

@@ -1,19 +1,19 @@
+import 'package:fast_track_flutter_fpt/core/errors/app_failure.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../core/errors/app_failure.dart';
-import '../../../repositories/post_repository.dart';
+import '../../domain/usecases/get_posts.dart';
 import 'posts_event.dart';
 import 'posts_state.dart';
 
 class PostsBloc extends Bloc<PostsEvent, PostsState> {
   PostsBloc({
-    required PostRepository postRepository,
-  })  : _postRepository = postRepository,
+    required GetPosts getPosts,
+  })  : _getPosts = getPosts,
         super(const PostsState()) {
     on<PostsRequested>(_onPostsRequested);
   }
 
-  final PostRepository _postRepository;
+  final GetPosts _getPosts;
 
   Future<void> _onPostsRequested(
     PostsRequested event,
@@ -27,7 +27,7 @@ class PostsBloc extends Bloc<PostsEvent, PostsState> {
     );
 
     try {
-      final result = await _postRepository.getPosts();
+      final result = await _getPosts();
 
       emit(
         state.copyWith(

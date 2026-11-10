@@ -1,7 +1,6 @@
 import 'package:equatable/equatable.dart';
-
-import '../../../core/errors/app_failure.dart';
-import '../../../models/post.dart';
+import 'package:fast_track_flutter_fpt/core/errors/app_failure.dart';
+import '../../domain/entities/post.dart';
 
 enum PostsStatus {
   initial,
